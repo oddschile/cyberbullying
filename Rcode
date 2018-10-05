@@ -1,0 +1,65 @@
+library(caret)
+
+ciberac <- read.csv("http://oddschile.net/ciberac.csv")
+
+head(ciberac)
+
+library(ggplot2)
+
+ggplot(ciberac, aes(x = ciberacoso, y = edad, fill = sexo)) +   geom_boxplot(size = .75) +   facet_grid(dep_est ~ valioso, margins = FALSE) +   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+
+ciberac$ciberacoso <- ifelse(ciberac$ciberacoso == "Si", 1, 0)
+ciberac$ciberacoso <- factor(ciberac$ciberacoso, levels = c(0, 1))
+
+'%ni%' <- Negate('%in%')  
+options(scipen=999)  
+set.seed(100)
+trainDataIndex <- createDataPartition(ciberac$ciberacoso, p=0.7, list = F)
+trainData <- ciberac[trainDataIndex, ]
+testData <- ciberac[-trainDataIndex, ]
+
+table(trainData$ciberacoso)
+
+set.seed(100)
+down_train <- downSample(x = trainData[, colnames(trainData) %ni% "ciberacoso"],
+                         y = trainData$ciberacoso)
+
+table(down_train$Class)
+
+mod <- glm(Class ~., family = "binomial", data=down_train)
+
+summary(mod)
+
+mod2 <- glm(Class ~ sexo + edad + dep_est + valioso + satisfaccion, family = "binomial", data = down_train)
+
+summary(mod2)
+
+pred <- predict(mod2, newdata = testData, type = "response")
+pred
+
+
+nd <- data.frame("sexo"= "Mujer","edad"=15, "dep_est" = "Subvencionado", "valioso" = "No", "satisfaccion" = "No")
+predict(mod2,nd)
+
+pred2 <- predict(mod2, newdata = nd, type = "response")
+pred2
+
+
+
+
+
+
+nd2 <- data.frame("sexo"= "Hombre","edad"=12, "dep_est" = "Particular", "valioso" = "Si", "satisfaccion" = "Si")
+predict(mod2, nd2)
+
+
+
+y_pred_num <- ifelse(pred > 0.5, 1, 0)
+y_pred <- factor(y_pred_num, levels=c(0, 1))
+y_act <- testData$ciberacoso
+
+mean(y_pred == y_act) 
+
+library(pROC)
+auc(Class~mod2$fitted.values, data = down_train)
